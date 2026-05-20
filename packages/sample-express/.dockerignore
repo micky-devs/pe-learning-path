@@ -1,0 +1,7 @@
+node_modules
+dist
+.git
+.direnv
+cdk.out
+**/node_modules
+**/dist

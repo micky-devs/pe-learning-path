@@ -1,0 +1,26 @@
+# direnv / shell
+.direnv
+.envrc
+
+# OS
+.DS_Store
+
+# deps & build output
+node_modules
+dist/
+cdk.out/
+tmp/
+
+# secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# AWS / CDK
+.aws-sam/
+
+# editor
+.vscode/
+.idea/
