@@ -40,6 +40,7 @@ const config: Config = {
       "classic",
       {
         docs: {
+          routeBasePath: "/",
           sidebarPath: "./sidebars.ts",
           editUrl: `https://github.com/${organizationName}/${projectName}/tree/main/docs/`,
         },
@@ -80,7 +81,7 @@ const config: Config = {
           items: [
             {
               label: "Getting Started",
-              to: "/docs/intro",
+              to: "/",
             },
           ],
         },
