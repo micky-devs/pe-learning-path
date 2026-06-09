@@ -1,10 +1,10 @@
 {
   "name": "pe-learning-path",
   "version": "0.0.1",
-  "type": "module",
   "private": true,
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "docs"
   ],
   "engines": {
     "node": ">=22.22.0 <23.0.0"
@@ -12,6 +12,7 @@
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "dev": "npm run dev --workspaces --if-present",
+    "docs": "npm run dev --workspace @pe-learning-path/docs",
     "cdk": "cdk",
     "synth": "cdk synth",
     "deploy": "cdk deploy"
