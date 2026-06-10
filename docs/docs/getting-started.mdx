@@ -1,0 +1,38 @@
+---
+slug: /
+---
+
+import nvmrc from '!!raw-loader!@site/../.nvmrc';
+
+# Intro
+
+Welcome to the PE Learning Path 👋. 
+
+I've been working in Platform Engineering for almost my entire professional career and I want to share my knowledge and skills to create a learning platform that really gets you stuck in. My goal is to help others develop a competency in Platform Engineering that you can leverage in your career.
+
+# Quick Start
+
+This documentation site should be your starting point for all learning pathways. First choose a topic that you would like to work on, you'll see these in the nav bar, AWS for instance. Once you've selected a topic you can drill down into a specific lesson, for each lession there will be some theory and a practical element. I will try to keep the theory short just enough to provide you a terse conceptual understanding that will be built on cemented when you engage in the practical. After which you can start the practical, this practical will be located in a certain path of the repository where you'll have some code to get hands on with.
+
+**Get Started** by cloning the repository:
+```bash
+git clone https://github.com/micky-dev/pe-learning-path
+```
+
+With the repository cloned your first step should be to setup the .envrc this will set all of the required environment variables and other configuration required for things to run smoothly in the practical examples. 
+```bash
+mv example.envrc .envrc
+# predicate the values in the .envrc
+direnv allow
+```
+
+With this configuration anytime you cd into the repository all of the variables will be set, if you choose not to use direnv you will need to either run this as a script so `./.envrc` before you start working or find another way to set the environment variables into the shell you intend to work in.
+
+## Requirements
+Nearly all of the tasks are going to require you have these things setup on your local machine:
+- Usage of a Bash terminal (for Windows use WSL), commands will be kept distro agnostic
+- Docker 🐳
+- Node verion: {nvmrc} ([nvm](https://github.com/nvm-sh/nvm) is recommended)
+- [Direnv](https://github.com/direnv/direnv): not strictly required but recommended
+
+Each learning section will likely have it's own setup requirements like having access to an AWS account or access to a Kubernetes cluster, specifics will be detailed in their respective learning sections.

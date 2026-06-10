@@ -1,12 +1,22 @@
 import type { SidebarsConfig } from "@docusaurus/plugin-content-docs";
 
 const sidebars: SidebarsConfig = {
-  learningSidebar: [
-    "intro",
+  awsSidebar: [
+    {
+      type: "doc",
+      id: "aws/intro"
+    },
     {
       type: "category",
       label: "AWS Fundamentals",
-      items: ["aws-fundamentals/overview"],
+      items: [
+        "aws/overview",
+        {
+          id: 'aws/basic-networking',
+          type: "doc",
+          label: "Basic Networking"
+        }
+      ],
     },
   ],
 };

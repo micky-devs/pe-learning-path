@@ -3,7 +3,7 @@ import type { Config } from "@docusaurus/types";
 import type * as Preset from "@docusaurus/preset-classic";
 
 const organizationName = "micky-devs";
-const projectName = "pe-learning-path";
+const repositoryName = "pe-learning-path";
 
 const config: Config = {
   title: "PE Learning Path",
@@ -16,19 +16,21 @@ const config: Config = {
   },
 
   url: `https://${organizationName}.github.io`,
-  baseUrl: `/${projectName}/`,
+  baseUrl: "/",
 
   organizationName,
-  projectName,
   trailingSlash: false,
 
   onBrokenLinks: "throw",
 
   markdown: {
+    mermaid: true,
     hooks: {
       onBrokenMarkdownLinks: "warn",
     },
   },
+
+  themes: ["@docusaurus/theme-mermaid"],
 
   i18n: {
     defaultLocale: "en",
@@ -42,7 +44,7 @@ const config: Config = {
         docs: {
           routeBasePath: "/",
           sidebarPath: "./sidebars.ts",
-          editUrl: `https://github.com/${organizationName}/${projectName}/tree/main/docs/`,
+          editUrl: `https://github.com/${organizationName}/${repositoryName}/tree/main/docs/`,
         },
         blog: false,
         theme: {
@@ -61,48 +63,67 @@ const config: Config = {
       },
       items: [
         {
-          type: "docSidebar",
-          sidebarId: "learningSidebar",
+          type: "doc",
+          docId: "getting-started",
           position: "left",
-          label: "Learn",
+          label: "Getting Started",
         },
         {
-          href: `https://github.com/${organizationName}/${projectName}`,
+          type: "docSidebar",
+          sidebarId: "awsSidebar",
+          position: "left",
+          label: "AWS",
+        },
+        {
+          href: `https://github.com/${organizationName}`,
           label: "GitHub",
           position: "right",
         },
       ],
     },
-    footer: {
-      style: "dark",
-      links: [
-        {
-          title: "Learn",
-          items: [
-            {
-              label: "Getting Started",
-              to: "/",
-            },
-          ],
-        },
-        {
-          title: "More",
-          items: [
-            {
-              label: "GitHub",
-              href: `https://github.com/${organizationName}/${projectName}`,
-            },
-          ],
-        },
-      ],
-      copyright: `Copyright © ${new Date().getFullYear()} PE Learning Path.`,
-    },
-    prism: {
+
+    // footer: {
+    //   style: "dark",
+    //   links: [
+    //     {
+    //       title: "AWS",
+    //       items: [
+    //         {
+    //           label: "Getting Started",
+    //           to: "/",
+    //         },
+    //       ],
+    //     },
+    //     {
+    //       title: "More",
+    //       items: [
+    //         {
+    //           label: "GitHub",
+    //           href: `https://github.com/${organizationName}`,
+    //         },
+    //       ],
+    //     },
+    //   ],
+    //   copyright: `Copyright © ${new Date().getFullYear()} PE Learning Path.`,
+    // },
+
+  prism: {
       theme: prismThemes.github,
       darkTheme: prismThemes.dracula,
       additionalLanguages: ["bash", "json", "hcl"],
     },
   } satisfies Preset.ThemeConfig,
+
+  plugins: [
+    [
+      "@docusaurus/plugin-client-redirects",
+      {
+        redirects: [
+          { from: ["/getting-started"], to: "/" },
+        ],
+      },
+    ],
+  ],
 };
 
 export default config;

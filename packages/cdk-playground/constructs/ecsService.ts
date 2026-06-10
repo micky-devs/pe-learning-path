@@ -19,7 +19,7 @@ import {
   TargetType,
 } from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
-import { projectNs, getPublicIp } from "infra/config";
+import { projectNs, getPublicIp } from "../config";
 
 const publicIp = await getPublicIp();
 

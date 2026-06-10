@@ -1,0 +1,19 @@
+{
+  "name": "pe-learning-path",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "cdk": "cdk",
+    "synth": "cdk synth",
+    "deploy": "cdk deploy"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.0",
+    "aws-cdk": "^2.1106.1",
+    "aws-cdk-lib": "^2.239.0",
+    "constructs": "^10.5.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

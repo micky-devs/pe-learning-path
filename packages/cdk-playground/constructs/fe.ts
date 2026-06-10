@@ -14,7 +14,7 @@ import {
 } from "aws-cdk-lib/aws-cloudfront";
 import { S3BucketOrigin } from "aws-cdk-lib/aws-cloudfront-origins";
 import { BucketDeployment, Source } from "aws-cdk-lib/aws-s3-deployment";
-import { projectNs } from "infra/config";
+import { projectNs } from "../config";
 
 export interface FeProps {
   /**
