@@ -16,7 +16,7 @@ const config: Config = {
   },
 
   url: `https://${organizationName}.github.io`,
-  baseUrl: "/",
+  baseUrl: `/${repositoryName}/`,
 
   organizationName,
   trailingSlash: false,
