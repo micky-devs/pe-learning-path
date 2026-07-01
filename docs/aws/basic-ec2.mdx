@@ -110,10 +110,12 @@ You are now in the shell of your newly created instance, this is a great place t
 ### Practical Problem
 Having a look at the instance more closely in the AWS console through the lens of AWS systems manager should reveal a critical issue for you to solve, go ahead and start investigating when you're done expand the section below to check you found the right issue and review the suggestion for remediation. 
 <details>
-<summary>Answer for Practical Problem </summary>
+<summary>Answer for Practical Problem</summary>
+
 After looking in the AWS Systems Manager console you should have found that a patch scan was run on the instance right after the deployment. This scan should have revealed an issue with the `curl` package. 
 
 Now we know what the problem is go and use AWS best practices to solve the problem, either through the console or within the CDK stack itself, go ahead and run the patch baseline on this instance either as a one off or on a schedule. This patch baseline should resolve the vulnerability which was injected through the basic-ec2-userdata.sh script.
+
 </details>
 
 ### Activities
