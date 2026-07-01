@@ -1,0 +1,127 @@
+import basicEc2 from '!!raw-loader!@site/../cdk-playground/stacks/basic-ec2.ts';
+import CodeBlock from '@theme/CodeBlock';
+
+# Basic EC2
+
+EC2 is the primary primitive compute builing block of AWS. At a high level is allows you to provision and configure virtual machines running in a VPC. EC2 being a lower level service compared with other services like lightsail, elastic beanstalk, ECS etc.. requires a more nuanced understanding of how AWS actually works. Understanding AWS networking is critical for successfully deploying workloads on EC2 so if you haven't already checkout the [Basic Networking Lession](./basic-networking.mdx) if you haven't already. A core thing to understand about AWS is that AWS is built on AWS, higher level services like ECS are just managed implementations of EC2 so understanding EC2 gives you an insight into how most AWS compute services are actually running.
+
+
+## Theory
+### Instance Types
+
+An **instance type** is the hardware profile of your virtual machine — how much CPU, memory, network bandwidth, and what kind of processor it gets. AWS names them with a family, a generation, and a size, like `m7g.large`: the family (`m`) signals the intended workload, the number (`7`) is the generation (higher is newer and usually better value), the letters after it (`g`) denote the processor, and the size (`large`) scales the resources up or down within that family. Families are grouped by purpose — `t` for cheap general-purpose burstable workloads, `m` for balanced general-purpose, `c` for compute-optimised, `r` and `x` for memory-heavy workloads, and specialised families like `p` and `g` for GPU/accelerated compute — so choosing a type is really about matching the shape of your workload to the shape of the hardware.
+
+The `g` suffix is worth calling out: it means the instance runs on AWS's own **Graviton** ARM processors rather than x86 Intel/AMD chips. Graviton instances are cheaper and more power-efficient, but require your software (and container images) to be built for the ARM architecture.
+
+Choosing the right instance is an exercise in avoiding waste in both directions. Over-provision and you pay for CPU and memory that sit idle; under-provision and your workload throttles, runs out of memory, or gets starved of network bandwidth. The key questions are what your workload is actually bound by — is it CPU-bound, memory-bound, network-bound, or just bursty and mostly idle? — and then picking the family that matches, and the smallest size that comfortably fits. The `t` family deserves special mention here: it's **burstable**, meaning it earns CPU credits while idle and spends them during spikes, which is ideal for spiky low-average workloads but a trap for anything with sustained high CPU, where it will throttle once credits run out.
+
+One detail that catches people out is storage. Many instance types come with **instance store** volumes — fast, locally-attached NVMe SSDs physically on the host. These are extremely quick, but they are **ephemeral**: the data is wiped whenever the instance stops, terminates, or the underlying hardware fails. This is fundamentally different from **EBS**, which is network-attached storage that persists independently of the instance's lifecycle. Instance store is excellent for scratch space, caches, or temporary data you can afford to lose, but anything you need to keep must live on EBS (or an external service). You can tell which types have instance store from the name: a `d` in the suffix (`m6gd`, `c7gd`) indicates attached NVMe, and the storage-optimised `i` and `d` families are built around it — everything else is EBS-only. Mistaking one for the other is a classic way to lose data.
+
+### Permissions
+
+Code running on an EC2 instance almost always needs to call other AWS services — read from S3, pull an image, write logs. The wrong way to enable this is to bake long-lived access keys onto the instance; they're hard to rotate, easy to leak, and live forever if compromised. The right way is an **IAM role**. A role is an identity with permissions attached but no permanent credentials — instead it can be *assumed* to obtain **temporary** credentials that automatically expire and rotate.
+
+The role concept itself is the same one used across AWS — an ECS task role, a Lambda execution role, and an EC2 role are all just roles. What's different for EC2 is the *delivery mechanism*. Because EC2 hands you a raw virtual machine, IAM needs a container object called an **instance profile** to bind a role to the instance, and the relationship is strictly one profile to one role. Managed services like ECS or Lambda skip this: their control plane associates a role with the workload directly (a task role, a function role), so you never create a profile yourself. In practice the instance profile is simply "the EC2-specific wrapper for handing a role to a machine," and it's the main place you'll encounter the term.
+
+Once attached, anything running on the instance can obtain the role's temporary credentials automatically, with no keys stored anywhere on disk. This is delivered through the **Instance Metadata Service (IMDS)** — a special link-local address (`169.254.169.254`) reachable only from *inside* the instance, which exposes both instance information and the current role credentials. The AWS SDKs and CLI know to look here automatically, so correctly-configured code "just works" without any credentials in its configuration.
+
+A subtle but important part of this is **rotation**. Your application isn't managing credentials and neither is any agent you install — this is handled at the platform level. IMDS, backed by the underlying host metadata provider, continuously obtains fresh short-lived credentials for the attached role and keeps them available at the metadata endpoint before the current set expires. On the consumer side, the AWS SDK or CLI simply re-reads these credentials from IMDS as they near expiry; it isn't assuming the role itself, just picking up what IMDS already has waiting. The result is that your application always sees valid credentials without ever being aware that rotation is happening. Because these are temporary session credentials rather than permanent keys, a compromised session can also be revoked, after which the instance stops receiving valid credentials once the current set expires.
+
+Because IMDS is such a sensitive endpoint — anyone who can reach it can read your credentials — it's worth using **IMDSv2**, the session-token-based version that defends against a class of attacks (like a tricked server-side request forgery) that could otherwise reach the metadata endpoint. As with all IAM, the guiding principle is **least privilege**: grant the role only the specific actions and resources it genuinely needs, so that a compromised instance yields the smallest possible blast radius.
+
+### Networking
+
+An instance doesn't connect to the network directly — it connects through an **Elastic Network Interface (ENI)**, a virtual network card that lives in a specific subnet. The ENI is what actually holds the instance's private IP address, its security groups, and its MAC address. Every instance has a primary ENI it can't live without, but you can attach additional ENIs to place a single instance in multiple subnets or separate traffic across interfaces.
+
+Because the ENI lives in a subnet, and a subnet lives in one Availability Zone, an instance's network placement is fixed to that AZ. The ENI is always assigned a **private IP** from the subnet's range, which is how the instance is reached from elsewhere inside the VPC. Whether it's reachable from the *internet* depends on whether it also has a **public IP** and sits in a subnet with a route to an internet gateway.
+
+Public IPs come in two forms. An **auto-assigned public IP** is convenient but ephemeral — it's released and changes whenever the instance stops and starts. An **Elastic IP** is a public IPv4 address you allocate to your account and attach to an ENI, giving you a stable address that survives restarts and can be moved between instances, which matters when external systems need to allow-list a fixed address.
+
+The firewall applied to an instance is really applied to its ENI: the **security groups** you attach control what inbound and outbound traffic is permitted at the interface level. This is why the same instance can present different network exposure simply by changing the security groups on its interface, without touching the instance itself.
+
+Attaching more than one ENI makes an instance **multi-homed** (sometimes "dual-homed" with two interfaces). This is used to place a single instance in two subnets at once, to separate management traffic from application traffic, to give each interface its own security groups, or to hold a fixed IP/MAC on a secondary interface that can be detached and moved to a standby instance for failover. The catch — and the thing that tends to bite people the first time — is that the operating system doesn't automatically know how to use two interfaces intelligently. The kernel has a single default route, so traffic arriving on the second interface can try to reply via the first and get dropped (asymmetric routing). Making a second ENI genuinely work usually requires **policy-based routing** in the OS so that replies leave the same interface they arrived on. It's also worth knowing that the number of ENIs and IPs an instance can have is capped by its instance size, and every ENI on an instance must live in the same Availability Zone as the instance itself.
+
+### Templating
+
+A useful way to frame how you treat servers is **pets versus cattle**. A *pet* is an instance you've hand-configured, given a name, and nurse back to health when something goes wrong — losing it is painful because its exact state exists nowhere else. *Cattle* are identical, disposable instances you never log into to fix; if one misbehaves you terminate it and launch a fresh, identically-configured replacement. The cattle model is what makes systems resilient and scalable, but it only works if launching a new instance reliably reproduces the same result every time. Everything below is about achieving that reproducibility.
+
+The foundation is the **AMI (Amazon Machine Image)** — the image an instance boots from, containing the operating system and whatever software and configuration has been baked into it. Two philosophies exist for getting an instance into its final state. You can **bootstrap** at launch, starting from a base OS image and installing everything via a startup script — flexible, but slower to boot and prone to drift if a package or download changes between launches. Or you can bake a **golden AMI**: pre-build a custom image with everything already installed, so instances boot fast and come up byte-for-byte identical. The trade-off is immutability and speed versus flexibility, and most mature setups lean toward baking as much as possible into the AMI to maximise reproducibility.
+
+Tying it together is the **launch template** — a versioned, reusable definition of *how* an instance should be created: which AMI, instance type, security groups, IAM instance profile, storage, and startup configuration to use. With a template, every instance (whether launched by you or by an automated system) comes up from the same blueprint, and because templates are versioned you can evolve that configuration deliberately and roll forward or back. Auto Scaling Groups build directly on this, using a launch template as the definition for every instance they create. Together, a well-built AMI and a launch template are what turn "launch a server" into a repeatable, disposable operation — the practical basis for treating instances as cattle rather than pets.
+
+### EBS (Storage volumes)
+
+**Elastic Block Store (EBS)** provides the persistent disks that most instances run on. An EBS volume is **network-attached block storage** — it behaves like a raw hard drive you can format and mount, but it actually lives on separate storage infrastructure and is reached over the network. Because it's decoupled from the instance, the data survives the instance being stopped, started, or terminated (assuming you don't delete the volume), and a volume can be detached from one instance and reattached to another.
+
+That network-attached design comes with one hard constraint: an EBS volume lives in a single **Availability Zone** and can only attach to an instance in that same AZ. To move data across AZs (or regions) you take a **snapshot** — a point-in-time backup of the volume stored in S3 — and create a new volume from it wherever you need. Snapshots are also the standard mechanism for backups and for baking data into AMIs, since an AMI is essentially a snapshot plus launch metadata.
+
+EBS comes in several **volume types** tuned for different needs. General-purpose SSDs (the `gp` family) are the sensible default, balancing cost and performance for most workloads. Provisioned-IOPS SSDs (the `io` family) cost more but deliver guaranteed high throughput and IOPS for demanding databases. Throughput-optimised and cold HDD types (`st` and `sc`) trade random-access performance for cheap sequential throughput, suited to large, infrequently-accessed data. Modern volumes also let you adjust size and performance independently while in use, so you're not locked into your initial sizing.
+
+### Agents
+
+An instance on its own is something the platform can only manage from the outside — start it, stop it, attach a disk. To manage what happens *inside* the running operating system, you rely on **agents**: lightweight software running on the instance that lets AWS services reach in to run commands, collect data, or apply configuration, all through the AWS API rather than a direct network connection.
+
+The most important is the **SSM Agent** (Systems Manager), which is pre-installed on Amazon Linux and most modern base images. It's the channel behind a whole family of management capabilities: running commands across fleets of instances, applying patches, enforcing desired state, and — notably — **Session Manager**, which gives you an interactive shell on the instance without any open SSH port, bastion host, or SSH keys. Because the agent initiates an outbound connection to Systems Manager, you can administer an instance that has no inbound access at all, which is a significant security win over traditional SSH. Being installed isn't enough on its own, though: the agent acts using the instance's IAM role, so that role needs a policy like the managed `AmazonSSMManagedInstanceCore` attached, and the instance needs a network path to the Systems Manager endpoints — either outbound internet access or, for instances with no internet route, **VPC endpoints** that expose the service privately. A missing policy or network path is the usual reason an agent is running but "nothing works."
+
+The other agent you'll commonly run is the **CloudWatch Agent**, which collects metrics and logs from inside the instance and ships them to CloudWatch. This matters because the metrics AWS sees from outside are limited — it can measure CPU and network at the hypervisor, but it can't see memory usage, disk space, or your application's log files without something running on the instance to report them. The CloudWatch Agent fills that gap. Like the SSM Agent, it depends on the instance role carrying the right permissions (the managed `CloudWatchAgentServerPolicy`) and on having connectivity to the CloudWatch endpoints to deliver what it collects.
+
+### Access and Administration
+
+Getting access to an instance has several models, and the contrast between them captures a lot of how EC2 administration has evolved.
+
+The traditional model is **SSH with a key pair**. A key pair is asymmetric: AWS injects the **public** key into the instance while you keep the **private** key. On first boot, the instance's initialisation places that public key into the `~/.ssh/authorized_keys` of a default **operating-system user** — `ec2-user` on Amazon Linux, `ubuntu` on Ubuntu, and so on — which is a local Linux account with sudo, entirely separate from any IAM identity. It's worth being clear on that distinction: IAM governs what you can do in the AWS API, while OS users govern what you can do once you're *inside* the machine, and the two are unrelated. AWS only ever holds the **public** half of the key: the EC2 console shows you the public key and its fingerprint, never the private key. If AWS generates a key pair for you it reveals the private key exactly once at creation for you to download, and it's gone from AWS thereafter — so if you lose it, you lose that route in. Because SSH needs an open port 22, instances are often kept private behind a **bastion host** — a hardened jump box — rather than exposed directly.
+
+**EC2 Instance Connect** is a lighter take on the same idea. Rather than managing a long-lived key, it pushes a temporary public key to the instance on demand (valid for about a minute) and connects you as the OS user, with the whole action authorised by IAM. It still uses SSH under the hood, but it removes the burden of distributing and rotating permanent keys.
+
+The modern model is **Session Manager**, provided through the SSM Agent covered earlier. Instead of an inbound connection, the agent reaches out to Systems Manager and you open a shell *through* the AWS API. This removes the need for open ports, bastions, and SSH keys entirely, and because access flows through AWS it's governed by **IAM** and every session can be logged and audited centrally. This shift — from securing a network perimeter to authorising identities — is the direction most AWS administration has moved.
+
+Beyond interactive access, most routine administration happens *without* logging in at all, again through Systems Manager. The unit of automation here is the **SSM Document** — a versioned JSON or YAML definition describing the steps to perform, which the various capabilities then execute. AWS provides managed documents for common tasks (such as `AWS-RunShellScript` or `AWS-RunPatchBaseline`) and you can author your own. Building on that, **Run Command** executes a document across many instances at once; **Patch Manager** applies and enforces **patch baselines** so a fleet stays up to date; and **State Manager** continuously reconciles instances to a desired configuration. Treating administration as fleet-wide, API-driven operations rather than something you do by hand on individual machines is what makes managing instances at scale tractable — and it ties back directly to the cattle-not-pets philosophy: you administer the group through automation, not each server through a terminal.
+
+## Practical
+
+Like with the Basic Networking practical CDK gives you a high level construct you can utilise to create an EC2 instance that abstracts away a lot of the complexity. To get started add something like this into your index.ts to declare the BasicEc2 stack into your CDK app.
+
+```typescript
+import { App } from "aws-cdk-lib";
+import { BasicEc2 } from "./stacks/basic-ec2";
+import { getPublicIp } from "./config";
+
+const app = new App()
+
+const allowedIp = await getPublicIp()
+new BasicEc2(app, 'basic-ec2',
+  { 
+    allowedIp, 
+  }
+)
+```
+
+You can see the full stack definition in `stacks/basic-ec2.ts` or expand the collapsible below:
+<details>
+<summary>BasicEc2 Stack</summary>
+<CodeBlock language="typescript">{basicEc2}</CodeBlock>
+</details>
+
+Once you have deployed the stack you should be able to connect to your instance, there is a helper script prepared for you simply run:
+`./packages/cdk-playground/scripts/basic-ec2-ssh.sh`
+
+You are now in the shell of your newly created instance, this is a great place to test things out inside your AWS network it's running Amazon Linux which is a great starting point if you don't know what linux distro to use.
+
+### Practical Problem
+Having a look at the instance more closely in the AWS console through the lens of AWS systems manager should reveal a critical issue for you to solve, go ahead and start investigating when you're done expand the section below to check you found the right issue and review the suggestion for remediation. 
+<details>
+<summary>Answer for Practical Problem </summary>
+After looking in the AWS Systems Manager console you should have found that a patch scan was run on the instance right after the deployment. This scan should have revealed an issue with the `curl` package. 
+
+Now we know what the problem is go and use AWS best practices to solve the problem, either through the console or within the CDK stack itself, go ahead and run the patch baseline on this instance either as a one off or on a schedule. This patch baseline should resolve the vulnerability which was injected through the basic-ec2-userdata.sh script.
+</details>
+
+### Activities
+After you've had a go with the practical problem here are a few more things that you can try:
+- Deploy an application onto the instance (hint: you can leverage the userdata script)
+- Configure some permissions to access AWS resources like S3, dynamodb etc...
+- Create a launch template for the instance
+- Stand up another instance or database and test out interconnectivity
+- Connect to the instance using Session Manager instead of the SSH script, then try locking down the security group to remove inbound SSH entirely
+- Bake a golden AMI from your running instance and launch a new instance from it
+

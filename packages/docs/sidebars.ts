@@ -15,6 +15,11 @@ const sidebars: SidebarsConfig = {
           id: 'aws/basic-networking',
           type: "doc",
           label: "Basic Networking"
+        },
+        {
+          id: 'aws/basic-ec2',
+          type: "doc",
+          label: "Basic EC2"
         }
       ],
     },

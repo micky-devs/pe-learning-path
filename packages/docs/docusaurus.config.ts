@@ -42,6 +42,7 @@ const config: Config = {
       "classic",
       {
         docs: {
+          path: "../../docs",
           routeBasePath: "/",
           sidebarPath: "./sidebars.ts",
           editUrl: `https://github.com/${organizationName}/${repositoryName}/tree/main/docs/`,

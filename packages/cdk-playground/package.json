@@ -1,11 +1,10 @@
 {
-  "name": "pe-learning-path",
+  "name": "@pe-learning-path/cdk-playground",
   "version": "0.0.1",
   "private": true,
   "type": "module",
   "scripts": {
-    "cdk": "cdk",
-    "synth": "cdk synth",
+    "diff": "cdk diff",
     "deploy": "cdk deploy"
   },
   "devDependencies": {
