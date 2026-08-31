@@ -1,0 +1,13 @@
+name: pulumi-playground
+runtime:
+  name: nodejs
+  options:
+    # Use tsx to run TypeScript directly, matching the repo convention
+    # (the cdk-playground uses `npx tsx` too).
+    typescript: false
+    nodeargs: --import tsx
+description: Lean EKS playground — managed control plane, Graviton nodes, no NAT, Gateway API.
+# Local file backend: state is written to ./.pulumi inside this package,
+# so there is no S3 bucket / DynamoDB table to manage. See README.md.
+backend:
+  url: file://.

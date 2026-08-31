@@ -1,0 +1,6 @@
+# Personal entrypoint — copy index.example.ts to index.ts and customise.
+index.ts
+
+# Pulumi local file backend state + workspace metadata.
+.pulumi/
+kubeconfig.yaml

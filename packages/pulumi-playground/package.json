@@ -1,0 +1,23 @@
+{
+  "name": "@pe-learning-path/pulumi-playground",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "preview": "pulumi preview",
+    "up": "pulumi up",
+    "destroy": "pulumi destroy"
+  },
+  "dependencies": {
+    "@pulumi/aws": "^6.66.0",
+    "@pulumi/eks": "^3.7.0",
+    "@pulumi/kubernetes": "^4.21.0",
+    "@pulumi/pulumi": "^3.142.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

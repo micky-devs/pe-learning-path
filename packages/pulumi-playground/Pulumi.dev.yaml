@@ -1,0 +1,5 @@
+# Stack config for the `dev` stack (local file backend).
+# Region is read by index.example.ts via aws.config.requireRegion().
+config:
+  aws:region: eu-west-1
+encryptionsalt: v1:c4ch2cnmRjo=:v1:5/uvCnsrqEGVUv6M:8GKV1iVM0dAQuUQKwoEB0vDTj2EvCw==
